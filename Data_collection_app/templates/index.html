@@ -1,0 +1,246 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Chord Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: url('/static/background.jpeg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            text-align: center;
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .slider-container {
+            margin: 20px 0;
+        }
+
+        .instructions {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .recording-animation, .playback-animation {
+            display: none;
+            margin-top: 20px;
+            font-size: 20px;
+            color: red;
+            font-weight: bold;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .message {
+            margin-top: 20px;
+            font-size: 16px;
+            color: green;
+        }
+
+        .fade-out {
+            animation: fadeOut 7s forwards; /* 7 seconds for fading */
+        }
+
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="intro-screen" class="container">
+        <h1>Welcome to Guitar Chord Recorder</h1>
+        <p>Before you begin, make absolutely sure your guitar is in standard tuning (440 Hz. EADGBE).</p>
+        <p>When you press start, you will be shown a guitar chord shape and a brief playing-style instruction.</p>
+        <p>Please press record, then play the chord as it says. You may play with any type of guitar: electric, acoustic, with any effect you want</p>
+        <p>You may even play with a wah-peddle, if that's your thing...</p>
+        <h3> Thank you for collecting data for this project! </h3>
+        <p>Visit the project on <a href="https://github.com/CamdenBibro/guitar-chord-classification" target="_blank" style="color: blue; text-decoration: underline;">GitHub</a> to learn more!</p>
+        <button id="start-button">Start</button>
+    </div>
+
+    <div id="main-content" class="container" style="display: none;">
+        <h1>Guitar Chord Recorder</h1>
+        <div>
+            <img id="chord-image" src="" alt="Guitar Chord" style="max-width: 100%; height: auto;">
+            <p id="instructions" class="instructions"></p>
+        </div>
+
+        <div class="slider-container">
+            <label for="duration-slider">Recording Duration:</label>
+            <input type="range" id="duration-slider" min="1" max="10" value="5">
+            <span id="duration-value">5</span> seconds
+        </div>
+
+        <div>
+            <button id="record-button">Record</button>
+            <button id="playback-button" disabled>Playback</button>
+            <button id="save-button" disabled>Save</button>
+            <button id="skip-button">Next Chord</button>
+        </div>
+
+        <div id="recording-animation" class="recording-animation">
+            Recording <span class="dot"></span>
+        </div>
+
+        <div id="playback-animation" class="playback-animation">
+            Playing Back <span class="dot"></span>
+        </div>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    let duration = 5;
+
+    document.getElementById('start-button').addEventListener('click', () => {
+        document.getElementById('intro-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        fetchChord();
+    });
+
+    document.getElementById('duration-slider').addEventListener('input', (e) => {
+        duration = e.target.value;
+        document.getElementById('duration-value').textContent = duration;
+    });
+
+    document.getElementById('record-button').addEventListener('click', async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+
+        mediaRecorder.start();
+        document.getElementById('recording-animation').style.display = 'block';
+
+        setTimeout(() => {
+            mediaRecorder.stop();
+            document.getElementById('recording-animation').style.display = 'none';
+            document.getElementById('playback-button').disabled = false;
+            document.getElementById('save-button').disabled = false;
+        }, duration * 1000);
+    });
+
+    document.getElementById('playback-button').addEventListener('click', () => {
+        const audioBlob = new Blob(recordedChunks, { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        audio.play();
+        document.getElementById('playback-animation').style.display = 'block';
+
+        audio.addEventListener('ended', () => {
+            document.getElementById('playback-animation').style.display = 'none';
+        });
+    });
+
+    document.getElementById('save-button').addEventListener('click', async () => {
+        const messageDiv = document.getElementById('message');
+
+        if (recordedChunks.length === 0) {
+            // Display warning in red
+            messageDiv.textContent = "No recording to save.";
+            messageDiv.style.color = "red";
+
+            // Add fade-out effect
+            messageDiv.classList.remove('fade-out'); // Reset animation
+            void messageDiv.offsetWidth; // Trigger reflow to restart the animation
+            messageDiv.classList.add('fade-out');
+
+            // Clear the message after fade-out
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.style.color = ''; // Reset color
+                messageDiv.classList.remove('fade-out');
+            }, 3000); // 3 seconds fade-out duration
+            return; // Exit the function since there's nothing to save
+        }
+
+        // Proceed with saving if there's a recording
+        const audioBlob = new Blob(recordedChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'recording.wav');
+
+        const response = await fetch('/save_recording', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+
+        // Display success or error message
+        messageDiv.textContent = data.message || data.error;
+        messageDiv.style.color = "green"; // Success messages are green
+        messageDiv.classList.remove('fade-out');
+        void messageDiv.offsetWidth;
+        messageDiv.classList.add('fade-out');
+
+        setTimeout(() => {
+            messageDiv.textContent = '';
+            messageDiv.classList.remove('fade-out');
+        }, 3000);
+    });
+
+    document.getElementById('skip-button').addEventListener('click', async () => {
+        recordedChunks = []; // Clear the recorded chunks
+        document.getElementById('playback-button').disabled = true; // Disable playback button
+        document.getElementById('save-button').disabled = true; // Disable save button
+        await fetchChord(); // Fetch and display the next chord
+    });
+
+    async function fetchChord() {
+        const response = await fetch('/get_chord');
+        const data = await response.json();
+        document.getElementById('chord-image').src = data.chord_image;
+        document.getElementById('instructions').textContent = data.instruction;
+    }
+    </script>
+</body>
+</html>

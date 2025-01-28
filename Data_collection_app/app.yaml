@@ -1,0 +1,13 @@
+runtime: python39  # Specify the Python runtime
+entrypoint: gunicorn -w 1 --threads 4 -b :$PORT app:app  # Use Gunicorn with 1 worker and 4 threads
+
+instance_class: F2  # Small and cost-effective instance type
+
+automatic_scaling:
+  target_cpu_utilization: 0.65  # Auto-scale when CPU utilization exceeds 65%
+  max_instances: 3             # Cap the number of instances to control costs
+
+env_variables:
+  FLASK_ENV: "production"  # Explicitly set Flask to production mode
+  #GOOGLE_APPLICATION_CREDENTIALS: "path/to/your-service-account-key.json"  # For local testing
+  

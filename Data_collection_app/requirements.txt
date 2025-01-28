@@ -1,0 +1,6 @@
+Flask
+sounddevice
+soundfile
+google-cloud-storage
+google-cloud-secret-manager
+gunicorn

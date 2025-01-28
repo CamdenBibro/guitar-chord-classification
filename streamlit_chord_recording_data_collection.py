@@ -1,13 +1,3 @@
-# Camden Bibro
-# 2025-01-16
-
-# Streamlit app for recording audio samples of guitar chords
-# This script is used to collect data for training a guitar chord classification model
-# It displays a random chord image and a description, and allows the user to record audio samples of the chord
-# The audio samples are saved as WAV files for further processing
-# The user can play, save, or discard the recordings
-# The script automatically moves to the next chord after saving or discarding a recording
-
 import streamlit as st
 import random
 import sounddevice as sd
@@ -34,7 +24,7 @@ chords = [
 # Generate descriptions dynamically
 def generate_description(chord):
     styles = ["loud", "softly", "quickly", "slowly", "relaxed", "quietly"]
-    directions = ["downward", "upward"]
+    directions = ["with a downward strum", "with an upward strum"]
     style = random.choice(styles)
     direction = random.choice(directions)
     return f"{chord}_{style}_{direction}"
@@ -59,19 +49,21 @@ def record_audio(duration, filename):
     return filename
 
 # Streamlit app
-st.title("Record your Chords!")
+st.title("Record your Chords")
 
 # Persistent state for chord and description
 if "selected_chord" not in st.session_state:
     st.session_state["selected_chord"] = random.choice(chords)
     st.session_state["description"] = generate_description(st.session_state["selected_chord"])
+    st.session_state["last_recording"] = None
+    st.session_state["recording_saved"] = False
 
 # Display the selected chord image and description
 chord_name = st.session_state["selected_chord"]
 description = st.session_state["description"]
 image_path = os.path.join(chord_images_dir, f"{chord_name}.png")
-st.image(image_path, caption=f"Chord: {chord_name}", use_column_width=True)
-st.subheader(f"Description: {description.replace('_', ' ')}")
+st.image(image_path, caption=f"Chord: {chord_name}", width=300)
+st.subheader(f"Please play this chord: {description.replace('_', ' ')}")
 
 # Record button
 duration = st.slider("Select recording duration (seconds)", 1, 10, 3, key="duration_slider")
@@ -83,9 +75,10 @@ if st.button("Record"):
     st.write(f"Recording saved as: `{filename}`")
 
 # Play, save, or discard the recording
-if "last_recording" in st.session_state:
+if st.session_state.get("last_recording"):
     if st.button("Play Recording"):
         st.audio(st.session_state["last_recording"], format="audio/wav")
+
     if not st.session_state.get("recording_saved", False):
         if st.button("Approve and Save Recording"):
             st.success("Recording approved and saved.")
@@ -93,7 +86,15 @@ if "last_recording" in st.session_state:
             # Move to the next chord
             st.session_state["selected_chord"] = random.choice(chords)
             st.session_state["description"] = generate_description(st.session_state["selected_chord"])
+            st.session_state["last_recording"] = None
+            st.session_state["recording_saved"] = False
+
     if st.button("Discard Recording"):
         os.remove(st.session_state["last_recording"])
         del st.session_state["last_recording"]
         st.warning("Recording deleted.")
+        # Move to the next chord
+        st.session_state["selected_chord"] = random.choice(chords)
+        st.session_state["description"] = generate_description(st.session_state["selected_chord"])
+        st.session_state["last_recording"] = None
+        st.session_state["recording_saved"] = False
